@@ -1,36 +1,35 @@
 import threading
 
 # Função que cada thread executará
-def process_csv_part(lines, thread_id, target_id, result, lock):
+def process_csv_part(lines, thread_id, target_plate, result, lock):
     print(f"Thread {thread_id} iniciou o processamento de {len(lines)} linhas.")
     for line in lines:
-        # Divide a linha em colunas usando a vírgula como separador
         columns = line.strip().split(",")
-        # Verifica se o ID da linha corresponde ao ID procurado
-        if columns[0] == target_id:
+        plate_in_csv = columns[0].replace("-", "")  # Remove o hífen da placa no CSV
+        if plate_in_csv == target_plate:  # Compara sem o hífen
             with lock:
-                result.append((thread_id, line))  # Armazena o ID da thread e a linha encontrada
-            break  # Encerra a busca, pois o ID foi encontrado
+                result.append((thread_id, columns))  # Armazena os dados encontrados
+            break  # Para a busca na thread
     print(f"Thread {thread_id} terminou o processamento.")
 
 # Função principal
 def main():
     file_path = "dados.csv"
-    num_threads = 7  # Número de threads que você deseja utilizar
+    num_threads = 4 
     threads = []
-    result = []  # Lista para armazenar o resultado da busca
-    lock = threading.Lock()  # Lock para sincronizar o acesso à lista de resultados
+    result = []  
+    lock = threading.Lock()  
 
-    # Solicita o ID como entrada do usuário
-    target_id = input("Digite o ID que deseja buscar: ")
+    # Solicita a placa do carro como entrada do usuário
+    target_plate = input("Digite a placa do carro que deseja buscar: ").strip().upper().replace("-", "")
 
     # Abre o arquivo e lê todas as linhas
     with open(file_path, mode="r", encoding="utf-8") as file:
-        lines = file.readlines()  # Lê todas as linhas do arquivo
+        lines = file.readlines()  
 
-    # Remove o cabeçalho (primeira linha) e divide as linhas restantes
-    header = lines[0]  # Guarda o cabeçalho
-    data_lines = lines[1:]  # Restante das linhas (dados)
+    # Captura o cabeçalho e as linhas de dados
+    header = lines[0].strip().split(",")
+    data_lines = lines[1:]  
 
     # Divide as linhas do CSV em partes iguais para cada thread
     chunk_size = len(data_lines) // num_threads
@@ -40,9 +39,7 @@ def main():
         chunk = data_lines[start:end]
 
         # Cria e inicia uma nova thread para processar o chunk
-        thread = threading.Thread(
-            target=process_csv_part, args=(chunk, i, target_id, result, lock)
-        )
+        thread = threading.Thread(target=process_csv_part, args=(chunk, i, target_plate, result, lock))
         threads.append(thread)
         thread.start()
 
@@ -50,12 +47,21 @@ def main():
     for thread in threads:
         thread.join()
 
-    # Exibe o resultado da busca
+    # Exibe o resultado da busca formatado manualmente
     if result:
-        thread_id, line = result[0]  # Pega o ID da thread e a linha encontrada
-        print(f"Thread {thread_id} encontrou a linha para o ID {target_id}: {line}")
+        thread_id, data = result[0]  
+        print(f"\n✅ Thread {thread_id} encontrou a placa '{data[0]}':\n")
+        
+        # Exibir cabeçalho
+        print("-" * 80)
+        print(f"{header[0]:<10} {header[1]:<10} {header[2]:<10} {header[3]:<6} {header[4]:<15} {header[5]:<20} {header[6]:<5} {header[7]:<5}")
+        print("-" * 80)
+        
+        # Exibir os dados encontrados
+        print(f"{data[0]:<10} {data[1]:<10} {data[2]:<10} {data[3]:<6} {data[4]:<15} {data[5]:<20} {data[6]:<5} {data[7]:<5}")
+        print("-" * 80)
     else:
-        print(f"Nenhuma linha encontrada para o ID {target_id}.")
+        print(f"\n❌ Nenhuma linha encontrada para a placa '{target_plate}'.")
 
 if __name__ == "__main__":
     main()
